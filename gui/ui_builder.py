@@ -41,6 +41,7 @@ class UIBuilder:
 
         host.project_button = QPushButton("PROJEKT")
         host.project_button.setFixedSize(200, 48)
+        host.project_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Prevent spacebar from triggering this button
         host.project_button.clicked.connect(host.project_handler.show_project_selection_dialog)
         top_bar.addWidget(host.project_button)
 
@@ -49,6 +50,7 @@ class UIBuilder:
         host.motion_filter_button.setFixedSize(220, 48)
         host.motion_filter_button.setCheckable(True)
         host.motion_filter_button.setChecked(True)  # Default: ON (Motion Filter enabled)
+        host.motion_filter_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Prevent spacebar from triggering this button
         host.motion_filter_button.clicked.connect(host.detection_handler.toggle_motion_filter)
         host.motion_filter_button.setStyleSheet("""
             QPushButton {
@@ -95,6 +97,7 @@ class UIBuilder:
         toggle_controls_layout.setContentsMargins(0, 5, 0, 0)
         host.toggle_controls_button = QPushButton("▼ Controls ausblenden")
         host.toggle_controls_button.setFixedHeight(24)
+        host.toggle_controls_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Prevent spacebar from triggering this button
         host.toggle_controls_button.setStyleSheet("""
             QPushButton {
                 background-color: #2d2d2d;
@@ -202,12 +205,14 @@ class UIBuilder:
         host.action_button = QPushButton("WARTEN")
         host.action_button.setFixedSize(180, 48)
         host.action_button.setEnabled(False)
+        host.action_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Prevent spacebar from triggering this button
         host.action_button.clicked.connect(host.capture_handler.on_action_button_press)
         button_row.addWidget(host.action_button)
 
         host.undo_button = QPushButton("RUECKGAENGIG")
         host.undo_button.setFixedSize(140, 48)
         host.undo_button.setEnabled(False)
+        host.undo_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Prevent spacebar from triggering this button
         host.undo_button.hide()
         host.undo_button.clicked.connect(host.capture_handler.undo_last_capture)
         button_row.addWidget(host.undo_button)

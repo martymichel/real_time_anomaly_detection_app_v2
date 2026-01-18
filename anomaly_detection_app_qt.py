@@ -470,17 +470,13 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
         if not self.controls_panel.isVisible():
             return
 
-        # Auto-hide in all capture and detection states (maximize camera view)
-        if self.app_state in [
-            AppState.CAPTURE_BACKGROUND,
-            AppState.CAPTURE_GOOD,
-            AppState.CAPTURE_TEST_DEFECT,
-            AppState.LIVE_DETECTION
-        ]:
+        # Auto-hide ONLY in LIVE_DETECTION mode (maximize camera view during inference)
+        # During capture workflows, keep controls visible for easy access
+        if self.app_state == AppState.LIVE_DETECTION:
             # Restart timer - will hide controls after 6 seconds of inactivity
             self.controls_auto_hide_timer.start()
         else:
-            # Keep controls visible in other states (PROJECT_SELECTION, TRAINING, etc.)
+            # Keep controls visible in all other states (including capture workflows)
             self.controls_auto_hide_timer.stop()
 
     def auto_hide_controls_panel(self):
