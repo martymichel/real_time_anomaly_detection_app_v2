@@ -1,0 +1,33 @@
+# PySide6 Anomaly Detection App - Requirements
+# ==============================================
+# Installation: uv pip install -r requirements_qt.txt
+
+# Qt6 Framework
+PySide6>=6.6.0
+PySide6-Addons>=6.6.0
+
+# Deep Learning (installed separately via uv with CUDA)
+# torch>=2.5.0  # Installed via: uv pip install torch --index-url https://download.pytorch.org/whl/cu121
+# torchvision>=0.16.0
+
+# Transformers
+transformers>=4.36.0
+
+# Computer Vision
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# Scientific Computing
+numpy>=1.24.0
+
+# FAISS for k-NN search (CPU version)
+# Note: FAISS-GPU not available for Windows via pip
+# App uses PyTorch GPU fallback (torch.cdist) which provides excellent performance
+faiss-cpu>=1.7.4
+
+# IDS Peak SDK (installable via pip/uv)
+ids-peak>=1.13.0
+ids-peak-afl>=2.0.0
+ids_peak_common>=1.1.0
+ids_peak_ipl>=1.17.0
+ids_peak_icv>=1.1.0
