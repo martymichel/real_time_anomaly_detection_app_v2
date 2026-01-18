@@ -426,9 +426,9 @@ class LiveAnomalyDetector:
         self.model.to(self.device)
         self.model.eval()
 
-        # NOTE: torch.compile() is NOT compatible with output_hidden_states=True
-        # which is required for multi-layer feature extraction
-        # Skipping torch.compile() to avoid runtime errors
+        # NOTE: torch.compile() is fundamentally incompatible with output_hidden_states=True
+        # This is a known limitation in PyTorch 2.x - graph breaks at hidden_states access
+        # Using eager mode for full compatibility
 
         print("[OK] DINOv3 Model loaded and ready")
 
@@ -891,7 +891,7 @@ class LiveAnomalyDetector:
             img_tensor = self.preprocess_image(img_np)
 
             # OPTIMIZED: Use AMP for feature extraction during memory bank building
-            with torch.cuda.amp.autocast(enabled=self.use_amp, dtype=self.amp_dtype):
+            with torch.amp.autocast('cuda', enabled=self.use_amp, dtype=self.amp_dtype):
                 # Extract features (single-layer)
                 patch_features = self._extract_features(img_tensor)
 
@@ -1212,7 +1212,7 @@ class LiveAnomalyDetector:
             preprocess_ms = (time.perf_counter() - t_preprocess) * 1000.0
 
             # OPTIMIZED: Use AMP for feature extraction (FP16)
-            with torch.cuda.amp.autocast(enabled=self.use_amp, dtype=self.amp_dtype):
+            with torch.amp.autocast('cuda', enabled=self.use_amp, dtype=self.amp_dtype):
                 # Extract features (single-layer) - runs in FP16 if AMP enabled
                 patch_features = self._extract_features(img_tensor)
 

@@ -162,9 +162,9 @@ class ModelTrainer:
         self.model.to(self.device)
         self.model.eval()
 
-        # NOTE: torch.compile() is NOT compatible with output_hidden_states=True
-        # which is required for multi-layer feature extraction
-        # Skipping torch.compile() to avoid runtime errors
+        # NOTE: torch.compile() is fundamentally incompatible with output_hidden_states=True
+        # This is a known limitation in PyTorch 2.x - graph breaks at hidden_states access
+        # Using eager mode for full compatibility
 
         print("[OK] Model loaded and ready")
 
@@ -330,7 +330,7 @@ class ModelTrainer:
             ]).to(self.device, non_blocking=True)
 
             # OPTIMIZED: Use AMP for feature extraction
-            with torch.cuda.amp.autocast(enabled=self.use_amp, dtype=self.amp_dtype):
+            with torch.amp.autocast('cuda', enabled=self.use_amp, dtype=self.amp_dtype):
                 # Extract features
                 patch_features = self._extract_features(batch_tensors)
 
@@ -444,7 +444,7 @@ class ModelTrainer:
 
         # Extract features with AMP
         with torch.no_grad():
-            with torch.cuda.amp.autocast(enabled=self.use_amp, dtype=self.amp_dtype):
+            with torch.amp.autocast('cuda', enabled=self.use_amp, dtype=self.amp_dtype):
                 patch_features = self._extract_features(img_tensor)
 
             # Convert to FP32
@@ -677,7 +677,7 @@ class ModelTrainer:
 
             # Extract features with AMP
             with torch.no_grad():
-                with torch.cuda.amp.autocast(enabled=self.use_amp, dtype=self.amp_dtype):
+                with torch.amp.autocast('cuda', enabled=self.use_amp, dtype=self.amp_dtype):
                     patch_features = self._extract_features(img_tensor)
 
                 # Convert to FP32
