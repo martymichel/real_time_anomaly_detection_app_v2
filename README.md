@@ -1,10 +1,12 @@
-![title image](assets/title1.png)
+![title image](assets/title2.png)
 
-# Real Time Anomaly Detection App
+# **Even MORE Real Time** Anomaly Detection App
+
+Inferenzzeit-Optimierte Version: ALT 8.0 FPS / **NEU 20 FPS** (*RDX 3070 Ti)
 
 Real-time Anomalie-Erkennung mit IDS Kameras und DINOv3 Zero-Shot Learning.
 
-![Version](https://img.shields.io/badge/version-14.0-blue)
+![Version](https://img.shields.io/badge/version-1.0-blue)
 ![Framework](https://img.shields.io/badge/framework-PySide6-green)
 ![GPU](https://img.shields.io/badge/GPU-CUDA%2012.1-orange)
 
