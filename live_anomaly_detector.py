@@ -449,7 +449,8 @@ class LiveAnomalyDetector:
             patch_features: Patch tokens [B, N_patches, C_total]
                            where C_total = sum of feature dims from selected layers
         """
-        with torch.no_grad():
+        # OPTIMIZED: torch.inference_mode() is faster than no_grad() (PyTorch 1.9+)
+        with torch.inference_mode():
             outputs = self.model(images, output_hidden_states=True)
 
             # Extract features from selected layers
@@ -828,7 +829,11 @@ class LiveAnomalyDetector:
             return
         if self.memory_bank_normalized:
             return
-        self.memory_bank = self.memory_bank / (self.memory_bank.norm(dim=-1, keepdim=True) + 1e-6)
+
+        # OPTIMIZED: In-place normalization (faster, saves memory)
+        norms = self.memory_bank.norm(dim=-1, keepdim=True)
+        norms.add_(1e-6)  # In-place add epsilon for numerical stability
+        self.memory_bank.div_(norms)  # In-place division
         self.memory_bank_normalized = True
 
     def _build_ann_index(self):

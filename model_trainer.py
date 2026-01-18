@@ -182,7 +182,8 @@ class ModelTrainer:
             patch_features: Patch tokens [B, N_patches, C_total]
                            where C_total = sum of feature dims from selected layers
         """
-        with torch.no_grad():
+        # OPTIMIZED: torch.inference_mode() is faster than no_grad() (PyTorch 1.9+)
+        with torch.inference_mode():
             outputs = self.model(images, output_hidden_states=True)
 
             # Extract features from selected layers
@@ -443,7 +444,8 @@ class ModelTrainer:
         img_tensor = img_tensor.to(self.device)
 
         # Extract features with AMP
-        with torch.no_grad():
+        # OPTIMIZED: torch.inference_mode() is faster than no_grad() (PyTorch 1.9+)
+        with torch.inference_mode():
             with torch.amp.autocast('cuda', enabled=self.use_amp, dtype=self.amp_dtype):
                 patch_features = self._extract_features(img_tensor)
 
@@ -676,7 +678,8 @@ class ModelTrainer:
             img_tensor = img_tensor.to(self.device)
 
             # Extract features with AMP
-            with torch.no_grad():
+            # OPTIMIZED: torch.inference_mode() is faster than no_grad() (PyTorch 1.9+)
+            with torch.inference_mode():
                 with torch.amp.autocast('cuda', enabled=self.use_amp, dtype=self.amp_dtype):
                     patch_features = self._extract_features(img_tensor)
 
