@@ -98,7 +98,7 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
 
         # Anomaly detection state
         self.current_threshold = 0.5
-        self.current_confidence = 0.05  # Very low default for edge detection (minimal noise)
+        self.current_confidence = 0.25  # Default confidence for contour detection
         self.detection_active = False
         self.last_anomaly_score = 0.0
         self.is_anomaly_detected = False
@@ -189,6 +189,7 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
             self.confidence_label.hide()
             self.confidence_value_label.hide()
             self.undo_button.hide()
+            self.motion_filter_button.hide()
 
         # ========== Text Overlay Intros (3s black screen with white text) ==========
 
@@ -212,6 +213,7 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
             self.confidence_label.hide()
             self.confidence_value_label.hide()
             self.undo_button.hide()
+            self.motion_filter_button.hide()
             # Start 3s timer for auto-advance
             self.intro_timer.start()
 
@@ -236,6 +238,7 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
             self.confidence_label.hide()
             self.confidence_value_label.hide()
             self.undo_button.hide()
+            self.motion_filter_button.hide()
             # Start 3s timer for auto-advance
             self.intro_timer.start()
 
@@ -260,6 +263,7 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
             self.confidence_label.hide()
             self.confidence_value_label.hide()
             self.undo_button.hide()
+            self.motion_filter_button.hide()
             # Start 3s timer for auto-advance
             self.intro_timer.start()
 
@@ -373,6 +377,7 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
             self.confidence_label.hide()
             self.confidence_value_label.hide()
             self.undo_button.hide()
+            self.motion_filter_button.hide()
 
         elif self.app_state == AppState.LIVE_DETECTION:
             print("[DEBUG] ========== LIVE_DETECTION STATE ==========", flush=True)
@@ -431,6 +436,9 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
                 print("[DEBUG] Button set to START (detection inactive)", flush=True)
             self.action_button.setEnabled(True)
             self.undo_button.hide()
+
+            # Show Motion Filter Toggle Button
+            self.motion_filter_button.show()
 
             # Ensure controls are visible
             self.controls_panel.show()
@@ -603,6 +611,13 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
 
     def keyPressEvent(self, event: QKeyEvent):
         """Handle keyboard events."""
+        # ESC closes the app cleanly
+        if event.key() == Qt.Key.Key_Escape:
+            print("[INFO] ESC pressed - closing application...")
+            self.close()
+            event.accept()
+            return
+
         # Spacebar triggers capture
         if event.key() == Qt.Key.Key_Space:
             if self.app_state in [

@@ -67,8 +67,8 @@ class DetectionHandler:
                 )
 
             self.host.anomaly_detector.prepare_memory_bank()
-            # Set threshold 5% higher than optimized value (more robust in real conditions)
-            self.host.current_threshold = float(config.threshold) * 1.05
+            # Set threshold 20% higher than optimized value (more robust in real conditions)
+            self.host.current_threshold = float(config.threshold) * 1.20
             self.host.detection_active = True
 
             print(f"[DEBUG] Setting threshold slider to {int(self.host.current_threshold * 1000)}", flush=True)
@@ -155,3 +155,31 @@ class DetectionHandler:
                 overlay_alpha=self.host._overlay_alpha,
                 confidence=self.host.current_confidence
             )
+
+    def toggle_motion_filter(self):
+        """
+        Toggle Motion Filter ON/OFF.
+
+        ON (checked): Motion filter enabled, skips detection during motion (current behavior)
+        OFF (unchecked): Motion filter disabled, runs detection continuously in real-time
+        """
+        if self.host.app_state != AppState.LIVE_DETECTION:
+            return
+
+        if self.host.anomaly_detector is None or self.host.anomaly_detector.motion_filter is None:
+            print("[WARN] Motion filter not available (not enabled in config)")
+            return
+
+        # Toggle button state (checked = ON, unchecked = OFF)
+        is_enabled = self.host.motion_filter_button.isChecked()
+
+        if is_enabled:
+            # Motion Filter ON: Enable motion detection (skip frames during motion)
+            self.host.anomaly_detector.motion_filter.enabled = True
+            self.host.motion_filter_button.setText("MOTION-FILTER: ON")
+            print("[OK] Motion filter ENABLED - Detection pauses during motion")
+        else:
+            # Motion Filter OFF: Disable motion detection (run detection continuously)
+            self.host.anomaly_detector.motion_filter.enabled = False
+            self.host.motion_filter_button.setText("MOTION-FILTER: OFF")
+            print("[OK] Motion filter DISABLED - Detection runs continuously in real-time")

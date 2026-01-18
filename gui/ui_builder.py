@@ -44,6 +44,33 @@ class UIBuilder:
         host.project_button.clicked.connect(host.project_handler.show_project_selection_dialog)
         top_bar.addWidget(host.project_button)
 
+        # Motion Filter Toggle Button (oben links)
+        host.motion_filter_button = QPushButton("MOTION-FILTER: ON")
+        host.motion_filter_button.setFixedSize(220, 48)
+        host.motion_filter_button.setCheckable(True)
+        host.motion_filter_button.setChecked(True)  # Default: ON (Motion Filter enabled)
+        host.motion_filter_button.clicked.connect(host.detection_handler.toggle_motion_filter)
+        host.motion_filter_button.setStyleSheet("""
+            QPushButton {
+                background-color: #2d6d2d;
+                border: 1px solid #408040;
+                color: #90ff90;
+            }
+            QPushButton:hover {
+                background-color: #3d7d3d;
+            }
+            QPushButton:checked {
+                background-color: #6d2d2d;
+                border: 1px solid #804040;
+                color: #ff9090;
+            }
+            QPushButton:checked:hover {
+                background-color: #7d3d3d;
+            }
+        """)
+        host.motion_filter_button.hide()  # Hidden until LIVE_DETECTION mode
+        top_bar.addWidget(host.motion_filter_button)
+
         top_bar.addStretch()
 
         host.status_label = QLabel("Kamera: Initialisierung...")

@@ -79,6 +79,7 @@ class MotionHysteresisFilter:
         self.motion_active = False
         self.frames_since_motion_stop = 0
         self.last_motion_amount = 0.0
+        self.enabled = True  # Motion filter enabled by default
 
     def _recalculate_frame_params(self):
         """Recalculate frame-based parameters from FPS."""
@@ -114,6 +115,10 @@ class MotionHysteresisFilter:
                 - motion_active: True if motion detected with hysteresis
                 - motion_amount: Fraction of pixels in motion (0.0 - 1.0)
         """
+        # If motion filter is disabled, always return False (no motion)
+        if not self.enabled:
+            return False, 0.0
+
         # Convert to grayscale for faster processing
         if len(frame.shape) == 3:
             frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
