@@ -50,6 +50,10 @@ start_anomaly_detection_qt.bat
 
 - App-Start mit Live-Stream
 
+Screenshot:
+
+![GUI](/assets/Screenshot1.png)
+
 ---
 
 ## 📋 Voraussetzungen
