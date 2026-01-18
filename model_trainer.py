@@ -80,6 +80,18 @@ class ModelTrainer:
         self.patches_per_image: Optional[int] = None
         self.training_resolution: Optional[int] = None  # Store training resolution
 
+        # OPTIMIZED: AMP (Automatic Mixed Precision) for FP16 training
+        self.use_amp = False
+        self.amp_dtype = torch.float32
+        if torch.cuda.is_available():
+            gpu_capability = torch.cuda.get_device_capability(self.device)
+            if gpu_capability[0] >= 7:
+                self.use_amp = True
+                self.amp_dtype = torch.float16
+                print(f"  AMP: Enabled (FP16) - GPU CC {gpu_capability[0]}.{gpu_capability[1]}")
+            else:
+                print(f"  AMP: Disabled - GPU CC {gpu_capability[0]}.{gpu_capability[1]} < 7.0")
+
         print(f"Model Trainer initialized")
         print(f"  Model: {model_name}")
         print(f"  Device: {self.device}")
@@ -149,6 +161,11 @@ class ModelTrainer:
 
         self.model.to(self.device)
         self.model.eval()
+
+        # NOTE: torch.compile() is NOT compatible with output_hidden_states=True
+        # which is required for multi-layer feature extraction
+        # Skipping torch.compile() to avoid runtime errors
+
         print("[OK] Model loaded and ready")
 
     def _extract_features(self, images: torch.Tensor) -> torch.Tensor:
@@ -312,8 +329,14 @@ class ModelTrainer:
                 self._prepare_image_tensor(img_np, image_size) for img_np in batch_images
             ]).to(self.device, non_blocking=True)
 
-            # Extract features
-            patch_features = self._extract_features(batch_tensors)
+            # OPTIMIZED: Use AMP for feature extraction
+            with torch.cuda.amp.autocast(enabled=self.use_amp, dtype=self.amp_dtype):
+                # Extract features
+                patch_features = self._extract_features(batch_tensors)
+
+            # Convert to FP32 for normalization and storage
+            if self.use_amp:
+                patch_features = patch_features.float()
 
             # Normalize features
             patch_features = patch_features / (
@@ -419,9 +442,14 @@ class ModelTrainer:
         img_tensor = self._prepare_image_tensor(img_np, image_size).unsqueeze(0)
         img_tensor = img_tensor.to(self.device)
 
-        # Extract features
+        # Extract features with AMP
         with torch.no_grad():
-            patch_features = self._extract_features(img_tensor)
+            with torch.cuda.amp.autocast(enabled=self.use_amp, dtype=self.amp_dtype):
+                patch_features = self._extract_features(img_tensor)
+
+            # Convert to FP32
+            if self.use_amp:
+                patch_features = patch_features.float()
 
             # Normalize
             patch_features = patch_features / (
@@ -647,9 +675,14 @@ class ModelTrainer:
             img_tensor = self._prepare_image_tensor(img_np, self.training_resolution).unsqueeze(0)
             img_tensor = img_tensor.to(self.device)
 
-            # Extract features
+            # Extract features with AMP
             with torch.no_grad():
-                patch_features = self._extract_features(img_tensor)
+                with torch.cuda.amp.autocast(enabled=self.use_amp, dtype=self.amp_dtype):
+                    patch_features = self._extract_features(img_tensor)
+
+                # Convert to FP32
+                if self.use_amp:
+                    patch_features = patch_features.float()
 
                 # Normalize
                 patch_features = patch_features / (

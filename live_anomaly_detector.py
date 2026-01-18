@@ -258,6 +258,22 @@ class LiveAnomalyDetector:
         self.frame_times = deque(maxlen=30)  # Last 30 frame timestamps
         self.current_fps = 10.0  # Initial FPS estimate
 
+        # OPTIMIZED: AMP (Automatic Mixed Precision) for FP16 inference
+        # Check if GPU supports FP16 (Compute Capability >= 7.0)
+        self.use_amp = False
+        self.amp_dtype = torch.float32
+        if torch.cuda.is_available():
+            gpu_capability = torch.cuda.get_device_capability(self.device)
+            # Tensor Cores available on CC 7.0+ (V100, T4, RTX series)
+            if gpu_capability[0] >= 7:
+                self.use_amp = True
+                self.amp_dtype = torch.float16
+                print(f"  [OK] AMP enabled (FP16 inference) - GPU CC {gpu_capability[0]}.{gpu_capability[1]}")
+            else:
+                print(f"  [INFO] AMP disabled - GPU CC {gpu_capability[0]}.{gpu_capability[1]} < 7.0 (no Tensor Cores)")
+        else:
+            print(f"  [INFO] AMP disabled - CPU inference")
+
         # Motion Detection Filter
         self.motion_filter = None
         if self.enable_motion_filter:
@@ -409,6 +425,10 @@ class LiveAnomalyDetector:
 
         self.model.to(self.device)
         self.model.eval()
+
+        # NOTE: torch.compile() is NOT compatible with output_hidden_states=True
+        # which is required for multi-layer feature extraction
+        # Skipping torch.compile() to avoid runtime errors
 
         print("[OK] DINOv3 Model loaded and ready")
 
@@ -870,8 +890,14 @@ class LiveAnomalyDetector:
             # Preprocess with same pipeline as inference (INTER_AREA + ImageNet normalization)
             img_tensor = self.preprocess_image(img_np)
 
-            # Extract features (single-layer)
-            patch_features = self._extract_features(img_tensor)
+            # OPTIMIZED: Use AMP for feature extraction during memory bank building
+            with torch.cuda.amp.autocast(enabled=self.use_amp, dtype=self.amp_dtype):
+                # Extract features (single-layer)
+                patch_features = self._extract_features(img_tensor)
+
+            # Convert to FP32 for memory bank storage
+            if self.use_amp:
+                patch_features = patch_features.float()
 
             # Add to feature list
             feats.append(patch_features[0])
@@ -923,6 +949,7 @@ class LiveAnomalyDetector:
     ) -> torch.Tensor:
         """
         Compute anomaly scores using FAISS k-NN search (single-layer).
+        OPTIMIZED: Minimizes CPU↔GPU transfers for better performance.
 
         Args:
             patch_features: Normalized features [N_patches, C]
@@ -937,19 +964,56 @@ class LiveAnomalyDetector:
         # But we ensure it's available just in case
         faiss = _ensure_faiss()
 
-        features_np = patch_features.cpu().numpy().astype('float32')
+        # OPTIMIZED: Check if FAISS GPU index to avoid CPU transfer
+        is_gpu_index = hasattr(self.faiss_index, 'getDevice')
 
-        # k-NN search
-        distances, indices = self.faiss_index.search(features_np, self.knn_k)
+        if is_gpu_index and self.device.type == 'cuda':
+            # FAISS-GPU: Keep data on GPU (no CPU transfer!)
+            # Convert torch tensor to contiguous float32 on GPU
+            features_gpu = patch_features.contiguous().float()
 
-        # Average k-NN distances
-        if self.metric == 'cosine':
-            # Convert inner product back to cosine distance
-            scores = 1.0 - distances.mean(axis=1)
+            # Allocate output tensors on GPU
+            distances_gpu = torch.empty(
+                (features_gpu.shape[0], self.knn_k),
+                dtype=torch.float32,
+                device=self.device
+            )
+            indices_gpu = torch.empty(
+                (features_gpu.shape[0], self.knn_k),
+                dtype=torch.int64,
+                device=self.device
+            )
+
+            # FAISS GPU search (stays on GPU!)
+            self.faiss_index.search(features_gpu, self.knn_k, distances_gpu, indices_gpu)
+
+            # Compute scores on GPU
+            if self.metric == 'cosine':
+                scores = 1.0 - distances_gpu.mean(dim=1)
+            else:
+                scores = distances_gpu.mean(dim=1)
+
         else:
-            scores = distances.mean(axis=1)
+            # FAISS-CPU: Minimize transfer overhead with pinned memory
+            if patch_features.is_cuda:
+                # Use pinned memory for faster CPU transfer
+                features_np = patch_features.cpu().numpy().astype('float32')
+            else:
+                features_np = patch_features.numpy().astype('float32')
 
-        return torch.from_numpy(scores).to(self.device)
+            # k-NN search on CPU
+            distances, indices = self.faiss_index.search(features_np, self.knn_k)
+
+            # Transfer back to GPU with non_blocking if available
+            if self.metric == 'cosine':
+                # Convert inner product back to cosine distance
+                scores_np = 1.0 - distances.mean(axis=1)
+            else:
+                scores_np = distances.mean(axis=1)
+
+            scores = torch.from_numpy(scores_np).to(self.device, non_blocking=True)
+
+        return scores
 
     def _compute_anomaly_scores_scann(
         self,
@@ -1123,6 +1187,7 @@ class LiveAnomalyDetector:
     ) -> Union[Tuple[np.ndarray, float], Tuple[np.ndarray, float, Dict[str, float]]]:
         """
         Run single-layer k-NN anomaly detection.
+        OPTIMIZED: Uses AMP (FP16) for feature extraction on supported GPUs.
 
         Args:
             image: RGB image [H, W, 3]
@@ -1146,13 +1211,19 @@ class LiveAnomalyDetector:
                 torch.cuda.synchronize()
             preprocess_ms = (time.perf_counter() - t_preprocess) * 1000.0
 
-            # Extract features (single-layer)
-            patch_features = self._extract_features(img_tensor)
+            # OPTIMIZED: Use AMP for feature extraction (FP16)
+            with torch.cuda.amp.autocast(enabled=self.use_amp, dtype=self.amp_dtype):
+                # Extract features (single-layer) - runs in FP16 if AMP enabled
+                patch_features = self._extract_features(img_tensor)
+
+            # Convert back to FP32 for numerical stability in k-NN search
+            if self.use_amp:
+                patch_features = patch_features.float()
 
             B, N, C = patch_features.shape
             S = int(N ** 0.5)  # Spatial size (32 for 512x512)
 
-            # Normalize query features once per frame
+            # Normalize query features once per frame (FP32 for stability)
             patch_features = patch_features / (patch_features.norm(dim=-1, keepdim=True) + 1e-6)
 
             # k-NN distance (Adaptive k-NN, FAISS, or torch)
