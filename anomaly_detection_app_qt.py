@@ -190,6 +190,7 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
             self.confidence_value_label.hide()
             self.undo_button.hide()
             self.motion_filter_button.hide()
+            self.viz_mode_button.hide()
 
         # ========== Text Overlay Intros (3s black screen with white text) ==========
 
@@ -214,6 +215,7 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
             self.confidence_value_label.hide()
             self.undo_button.hide()
             self.motion_filter_button.hide()
+            self.viz_mode_button.hide()
             # Start 3s timer for auto-advance
             self.intro_timer.start()
 
@@ -239,6 +241,7 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
             self.confidence_value_label.hide()
             self.undo_button.hide()
             self.motion_filter_button.hide()
+            self.viz_mode_button.hide()
             # Start 3s timer for auto-advance
             self.intro_timer.start()
 
@@ -264,6 +267,7 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
             self.confidence_value_label.hide()
             self.undo_button.hide()
             self.motion_filter_button.hide()
+            self.viz_mode_button.hide()
             # Start 3s timer for auto-advance
             self.intro_timer.start()
 
@@ -378,6 +382,7 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
             self.confidence_value_label.hide()
             self.undo_button.hide()
             self.motion_filter_button.hide()
+            self.viz_mode_button.hide()
 
         elif self.app_state == AppState.LIVE_DETECTION:
             print("[DEBUG] ========== LIVE_DETECTION STATE ==========", flush=True)
@@ -437,8 +442,9 @@ class AnomalyDetectionAppQt(QMainWindow, VisualEffectsMixin):
             self.action_button.setEnabled(True)
             self.undo_button.hide()
 
-            # Show Motion Filter Toggle Button
+            # Show Motion Filter Toggle Button and Visualization Mode Button
             self.motion_filter_button.show()
+            self.viz_mode_button.show()
 
             # Ensure controls are visible
             self.controls_panel.show()

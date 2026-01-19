@@ -45,3 +45,6 @@ nul
 
 Claude.md/
 /.claude
+test_combined_visualizations.py
+test_final_visualization.py
+test_visualization_methods.py

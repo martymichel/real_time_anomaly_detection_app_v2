@@ -74,6 +74,34 @@ class UIBuilder:
         host.motion_filter_button.hide()  # Hidden until LIVE_DETECTION mode
         top_bar.addWidget(host.motion_filter_button)
 
+        # Visualization Mode Toggle Button
+        host.viz_mode_button = QPushButton("VIZ: CLASSIC")
+        host.viz_mode_button.setFixedSize(160, 48)
+        host.viz_mode_button.setCheckable(True)
+        host.viz_mode_button.setChecked(False)  # Default: CLASSIC (unchecked)
+        host.viz_mode_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        host.viz_mode_button.clicked.connect(host.detection_handler.toggle_visualization_mode)
+        host.viz_mode_button.setStyleSheet("""
+            QPushButton {
+                background-color: #2d4d6d;
+                border: 1px solid #406080;
+                color: #90c0ff;
+            }
+            QPushButton:hover {
+                background-color: #3d5d7d;
+            }
+            QPushButton:checked {
+                background-color: #6d4d2d;
+                border: 1px solid #806040;
+                color: #ffc090;
+            }
+            QPushButton:checked:hover {
+                background-color: #7d5d3d;
+            }
+        """)
+        host.viz_mode_button.hide()  # Hidden until LIVE_DETECTION mode
+        top_bar.addWidget(host.viz_mode_button)
+
         top_bar.addStretch()
 
         host.status_label = QLabel("Kamera: Initialisierung...")

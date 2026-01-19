@@ -87,6 +87,7 @@ class ProjectConfig:
         self.runtime_threshold: Optional[float] = None  # User-adjusted threshold (None = use original)
         self.runtime_confidence: float = 0.05  # Confidence slider value
         self.runtime_motion_filter_active: bool = True  # Motion filter toggle state
+        self.runtime_visualization_mode: str = "classic"  # "classic" or "intensity"
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -118,7 +119,8 @@ class ProjectConfig:
             # Runtime settings
             "runtime_threshold": self.runtime_threshold,
             "runtime_confidence": self.runtime_confidence,
-            "runtime_motion_filter_active": self.runtime_motion_filter_active
+            "runtime_motion_filter_active": self.runtime_motion_filter_active,
+            "runtime_visualization_mode": self.runtime_visualization_mode
         }
 
     @classmethod
@@ -155,6 +157,7 @@ class ProjectConfig:
         config.runtime_threshold = data.get("runtime_threshold")
         config.runtime_confidence = data.get("runtime_confidence", 0.05)
         config.runtime_motion_filter_active = data.get("runtime_motion_filter_active", True)
+        config.runtime_visualization_mode = data.get("runtime_visualization_mode", "classic")
         return config
 
 

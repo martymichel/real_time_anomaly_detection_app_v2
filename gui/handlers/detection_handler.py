@@ -122,6 +122,18 @@ class DetectionHandler:
                     self.host.motion_filter_button.setText("MOTION-FILTER: OFF")
                 print(f"[DEBUG] Restored motion filter state: {'ON' if motion_filter_active else 'OFF'}")
 
+            # Restore visualization mode from runtime settings
+            viz_mode = config.runtime_visualization_mode
+            if viz_mode == "intensity":
+                self.host.variant_method = self.host.visualization_variants.variant_intensity_bbox_gpu
+                self.host.viz_mode_button.setChecked(True)
+                self.host.viz_mode_button.setText("VIZ: INTENSITY")
+            else:
+                self.host.variant_method = self.host.visualization_variants.variant_efficient_minimal_gpu
+                self.host.viz_mode_button.setChecked(False)
+                self.host.viz_mode_button.setText("VIZ: CLASSIC")
+            print(f"[DEBUG] Restored visualization mode: {viz_mode.upper()}")
+
             # Start inference thread
             if self.host.inference_thread is None:
                 self.host.inference_thread = InferenceThread()
@@ -228,6 +240,43 @@ class DetectionHandler:
         # Save motion filter state to project config
         self._save_runtime_settings()
 
+    def toggle_visualization_mode(self):
+        """
+        Toggle visualization mode between CLASSIC (red fill) and INTENSITY (yellow→red gradient + bbox).
+
+        CLASSIC (unchecked): Red alpha fill with red outline
+        INTENSITY (checked): Intensity-based yellow→red coloring with bounding boxes
+        """
+        if self.host.app_state != AppState.LIVE_DETECTION:
+            return
+
+        # Toggle button state (unchecked = CLASSIC, checked = INTENSITY)
+        is_intensity = self.host.viz_mode_button.isChecked()
+
+        if is_intensity:
+            # INTENSITY mode: Yellow→Red gradient with BBox
+            self.host.variant_method = self.host.visualization_variants.variant_intensity_bbox_gpu
+            self.host.viz_mode_button.setText("VIZ: INTENSITY")
+            print("[OK] Visualization: INTENSITY mode (yellow→red gradient + bbox)")
+        else:
+            # CLASSIC mode: Red alpha fill
+            self.host.variant_method = self.host.visualization_variants.variant_efficient_minimal_gpu
+            self.host.viz_mode_button.setText("VIZ: CLASSIC")
+            print("[OK] Visualization: CLASSIC mode (red alpha fill)")
+
+        # Update inference thread with new visualization method
+        if self.host.inference_thread is not None:
+            self.host.inference_thread.set_detector(
+                detector=self.host.anomaly_detector,
+                variant_method=self.host.variant_method,
+                threshold=self.host.current_threshold,
+                overlay_alpha=self.host._overlay_alpha,
+                confidence=self.host.current_confidence
+            )
+
+        # Save visualization mode to project config
+        self._save_runtime_settings()
+
     def _save_runtime_settings(self):
         """
         Schedule saving of runtime settings with debounce.
@@ -250,6 +299,9 @@ class DetectionHandler:
             # If no motion filter, preserve the button state (checked = ON)
             config.runtime_motion_filter_active = self.host.motion_filter_button.isChecked()
 
+        # Determine visualization mode (unchecked = classic, checked = intensity)
+        config.runtime_visualization_mode = "intensity" if self.host.viz_mode_button.isChecked() else "classic"
+
         # Debounce: restart timer on each call
         if self._save_timer is None:
             self._save_timer = QTimer()
@@ -269,6 +321,7 @@ class DetectionHandler:
             self.host.project_manager.save_config()
             print(f"[DEBUG] Runtime settings saved: threshold={config.runtime_threshold:.3f}, "
                   f"confidence={config.runtime_confidence:.2f}, "
-                  f"motion_filter={'ON' if config.runtime_motion_filter_active else 'OFF'}")
+                  f"motion_filter={'ON' if config.runtime_motion_filter_active else 'OFF'}, "
+                  f"viz_mode={config.runtime_visualization_mode}")
         except Exception as e:
             print(f"[WARN] Failed to save runtime settings: {e}")
