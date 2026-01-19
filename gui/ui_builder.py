@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (
     QProgressBar, QSlider, QCheckBox
 )
 from PySide6.QtCore import Qt, QTimer
+from gui.widgets import MarkedSlider
 
 
 class UIBuilder:
@@ -169,7 +170,7 @@ class UIBuilder:
         left_column.addLayout(confidence_row)
         left_column.addSpacing(8)
 
-        # Threshold slider
+        # Threshold slider (with marker for original trained threshold)
         threshold_row = QHBoxLayout()
         threshold_row.setSpacing(8)
 
@@ -179,7 +180,7 @@ class UIBuilder:
         host.threshold_label.hide()
         threshold_row.addWidget(host.threshold_label)
 
-        host.threshold_slider = QSlider(Qt.Orientation.Horizontal)
+        host.threshold_slider = MarkedSlider(Qt.Orientation.Horizontal)
         host.threshold_slider.setMinimum(0)
         host.threshold_slider.setMaximum(1000)
         host.threshold_slider.setValue(500)

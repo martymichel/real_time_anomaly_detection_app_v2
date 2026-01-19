@@ -83,6 +83,11 @@ class ProjectConfig:
         self.test_defect_count = 0
         self.validation_results: Optional[Dict[str, float]] = None
 
+        # Runtime settings (persisted per project, restored on load)
+        self.runtime_threshold: Optional[float] = None  # User-adjusted threshold (None = use original)
+        self.runtime_confidence: float = 0.05  # Confidence slider value
+        self.runtime_motion_filter_active: bool = True  # Motion filter toggle state
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
@@ -109,7 +114,11 @@ class ProjectConfig:
             "train_images_count": self.train_images_count,
             "test_good_count": self.test_good_count,
             "test_defect_count": self.test_defect_count,
-            "validation_results": self.validation_results
+            "validation_results": self.validation_results,
+            # Runtime settings
+            "runtime_threshold": self.runtime_threshold,
+            "runtime_confidence": self.runtime_confidence,
+            "runtime_motion_filter_active": self.runtime_motion_filter_active
         }
 
     @classmethod
@@ -142,6 +151,10 @@ class ProjectConfig:
         config.test_good_count = data.get("test_good_count", 0)
         config.test_defect_count = data.get("test_defect_count", 0)
         config.validation_results = data.get("validation_results")
+        # Runtime settings (with defaults for backward compatibility)
+        config.runtime_threshold = data.get("runtime_threshold")
+        config.runtime_confidence = data.get("runtime_confidence", 0.05)
+        config.runtime_motion_filter_active = data.get("runtime_motion_filter_active", True)
         return config
 
 

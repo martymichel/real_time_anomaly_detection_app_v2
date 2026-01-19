@@ -1,7 +1,7 @@
 """Detection handler for live anomaly detection workflow."""
 
 from PySide6.QtWidgets import QMessageBox
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, QTimer
 
 from live_anomaly_detector import LiveAnomalyDetector
 from gui.threads import InferenceThread
@@ -13,6 +13,9 @@ class DetectionHandler:
 
     def __init__(self, host):
         self.host = host
+        # Debounce timer for saving runtime settings (avoid excessive disk I/O)
+        self._save_timer: QTimer | None = None
+        self._save_delay_ms = 500  # Save 500ms after last change
 
     def init_live_detection(self, memory_bank):
         """Initialize live anomaly detection."""
@@ -67,8 +70,26 @@ class DetectionHandler:
                 )
 
             self.host.anomaly_detector.prepare_memory_bank()
-            # Set threshold 20% higher than optimized value (more robust in real conditions)
-            self.host.current_threshold = float(config.threshold) * 1.20
+
+            # Calculate the original trained threshold (with 20% margin)
+            original_threshold = float(config.threshold) * 1.20
+
+            # Set marker on threshold slider showing the original trained threshold
+            self.host.threshold_slider.set_marker_value(int(original_threshold * 1000))
+
+            # Restore runtime settings if available, otherwise use defaults
+            if config.runtime_threshold is not None:
+                # Use saved user-adjusted threshold
+                self.host.current_threshold = config.runtime_threshold
+                print(f"[DEBUG] Restoring saved threshold: {config.runtime_threshold:.3f}")
+            else:
+                # First time: use original threshold
+                self.host.current_threshold = original_threshold
+
+            # Restore confidence from runtime settings
+            self.host.current_confidence = config.runtime_confidence
+            print(f"[DEBUG] Restoring saved confidence: {config.runtime_confidence:.2f}")
+
             self.host.detection_active = True
 
             print(f"[DEBUG] Setting threshold slider to {int(self.host.current_threshold * 1000)}", flush=True)
@@ -86,6 +107,20 @@ class DetectionHandler:
             print(f"[DEBUG] Calling update_instruction_ui()...", flush=True)
             self.host.update_instruction_ui()
             print(f"[DEBUG] update_instruction_ui() RETURNED", flush=True)
+
+            # Restore motion filter state from runtime settings
+            if self.host.anomaly_detector.motion_filter is not None:
+                motion_filter_active = config.runtime_motion_filter_active
+                self.host.anomaly_detector.motion_filter.enabled = motion_filter_active
+                # Button logic: checked=True means ON (filter active)
+                # Stylesheet: unchecked=green, checked=red (inverted visuals)
+                # But the original code uses checked=ON, so we follow that
+                self.host.motion_filter_button.setChecked(motion_filter_active)
+                if motion_filter_active:
+                    self.host.motion_filter_button.setText("MOTION-FILTER: ON")
+                else:
+                    self.host.motion_filter_button.setText("MOTION-FILTER: OFF")
+                print(f"[DEBUG] Restored motion filter state: {'ON' if motion_filter_active else 'OFF'}")
 
             # Start inference thread
             if self.host.inference_thread is None:
@@ -142,6 +177,9 @@ class DetectionHandler:
                 confidence=self.host.current_confidence
             )
 
+        # Save runtime threshold to project config
+        self._save_runtime_settings()
+
     def on_confidence_change(self, value: int):
         """Handle confidence slider changes."""
         self.host.current_confidence = value / 1000.0
@@ -155,6 +193,9 @@ class DetectionHandler:
                 overlay_alpha=self.host._overlay_alpha,
                 confidence=self.host.current_confidence
             )
+
+        # Save runtime confidence to project config
+        self._save_runtime_settings()
 
     def toggle_motion_filter(self):
         """
@@ -183,3 +224,51 @@ class DetectionHandler:
             self.host.anomaly_detector.motion_filter.enabled = False
             self.host.motion_filter_button.setText("MOTION-FILTER: OFF")
             print("[OK] Motion filter DISABLED - Detection runs continuously in real-time")
+
+        # Save motion filter state to project config
+        self._save_runtime_settings()
+
+    def _save_runtime_settings(self):
+        """
+        Schedule saving of runtime settings with debounce.
+
+        Uses a timer to avoid excessive disk I/O when slider is being dragged.
+        Settings are saved 500ms after the last change.
+        """
+        if self.host.project_manager.current_config is None:
+            return
+
+        # Update config immediately (in memory)
+        config = self.host.project_manager.current_config
+        config.runtime_threshold = self.host.current_threshold
+        config.runtime_confidence = self.host.current_confidence
+
+        # Determine motion filter state
+        if self.host.anomaly_detector is not None and self.host.anomaly_detector.motion_filter is not None:
+            config.runtime_motion_filter_active = self.host.anomaly_detector.motion_filter.enabled
+        else:
+            # If no motion filter, preserve the button state (checked = ON)
+            config.runtime_motion_filter_active = self.host.motion_filter_button.isChecked()
+
+        # Debounce: restart timer on each call
+        if self._save_timer is None:
+            self._save_timer = QTimer()
+            self._save_timer.setSingleShot(True)
+            self._save_timer.timeout.connect(self._do_save_runtime_settings)
+
+        self._save_timer.start(self._save_delay_ms)
+
+    def _do_save_runtime_settings(self):
+        """Actually save runtime settings to disk (called after debounce delay)."""
+        if self.host.project_manager.current_config is None:
+            return
+
+        config = self.host.project_manager.current_config
+
+        try:
+            self.host.project_manager.save_config()
+            print(f"[DEBUG] Runtime settings saved: threshold={config.runtime_threshold:.3f}, "
+                  f"confidence={config.runtime_confidence:.2f}, "
+                  f"motion_filter={'ON' if config.runtime_motion_filter_active else 'OFF'}")
+        except Exception as e:
+            print(f"[WARN] Failed to save runtime settings: {e}")
